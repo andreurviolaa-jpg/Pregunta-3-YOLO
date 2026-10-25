@@ -9,8 +9,11 @@ Proyecto experimental de detección de fauna en imágenes de cámaras trampa de 
 - [`Pregunta_3_YOLO_Grupo_2.ipynb`](Pregunta_3_YOLO_Grupo_2.ipynb): notebook experimental en **Google Colab**, con exploración, preparación opcional de CCT-20, entrenamiento opcional, lectura de métricas TEST, análisis de robustez, sensibilidad al fondo, reportes y figuras.
 - [`modulo_ecologico_yolov8s.py`](modulo_ecologico_yolov8s.py): programa independiente para inferencia sobre fotografías de una cámara y generación de reportes CSV.
 - [`requirements.txt`](requirements.txt): dependencias Python.
+- [`run_pipeline.py`](run_pipeline.py): comando central de preparación, entrenamiento opcional, evaluación y resumen.
+- [`src/`](src/): scripts independientes, configuraciones originales y conversión de anotaciones.
+- [`tests/`](tests/): pruebas automatizadas de preparación y agregación geográfica (datos sintéticos, sin GPU).
 
-> **Estado de reproducibilidad:** el módulo de monitoreo es ejecutable desde la línea de comandos, siempre que se proporcionen sus fotografías y los pesos entrenados. El notebook experimental requiere los archivos originales de CCT-20 y los artefactos históricos en la estructura de Google Drive descrita abajo. Los pesos finales, imágenes originales y CSV de resultados históricos **no están incluidos** en este repositorio por ahora. Por ello, publicar este código **no equivale todavía** a una reproducción integral de todos los experimentos desde cero.
+> **Estado de reproducibilidad:** `run_pipeline.py` permite preparar CCT-20, reproducir los dos entrenamientos y calcular el mAP sobre TEST mediante un único comando, una vez suministrados los TAR originales y una GPU compatible. También ofrece una etapa de resumen que NO realiza inferencias ni entrenamiento. El módulo ecológico dispone de CLI independiente. **No se incluyen** los datos originales, checkpoints, CSV históricos ni las 120 etiquetas humanas de oclusión; por tanto los análisis manuales de robustez y la reproducción bit a bit de cifras históricas requieren esos artefactos. Los entrenamientos estocásticos pueden presentar diferencias según hardware y versiones.
 
 ## Resultados principales observados
 
@@ -35,7 +38,54 @@ python -m pip install -r requirements.txt
 
 Para inferencia con GPU se requiere una instalación compatible de PyTorch y los controladores correspondientes; **la CPU también funciona** para el módulo ecológico.
 
-## 2. Ejecutar el monitoreo ecológico con un comando
+## 2. Reproducción del pipeline principal con un solo comando
+
+Estructura de datos **aportada por quien ejecute el experimento**:
+
+```text
+trabajo/
+  raw/
+    eccv_18_annotations.tar.gz
+    eccv_18_all_images_sm.tar.gz
+  dataset/                 # generado automáticamente
+  runs/                    # generado al entrenar
+  resultados_analisis/     # generado al evaluar
+```
+
+Los nombres de `raw/*.tar.gz` corresponden exactamente a los archivos utilizados en el Colab. La preparación verifica los conteos finales: **12.099 TRAIN; 2.619 CIS VAL; 1.594 TRANS VAL; 13.085 CIS TEST; 18.698 TRANS TEST**. Las fotos de fauna sin bounding boxes completas no se convierten en negativos; los **668 negativos solo-car** de entrenamiento sí se incluyen con etiquetas vacías.
+
+**Un comando para reconstruir los experimentos centrales** (requiere acceso legal al conjunto, almacenamiento suficiente, CUDA y tiempo de GPU):
+
+```bash
+python run_pipeline.py --etapa todo --base ./trabajo --permitir-entrenamiento-gpu
+```
+
+El indicador `--permitir-entrenamiento-gpu` es obligatorio: nunca se entrena por defecto. Los checkpoints existentes se reutilizan. Los pasos individuales también se pueden ejecutar:
+
+```bash
+python run_pipeline.py --etapa preparar --base ./trabajo
+python run_pipeline.py --etapa entrenar --base ./trabajo --permitir-entrenamiento-gpu
+python run_pipeline.py --etapa evaluar --base ./trabajo
+python run_pipeline.py --etapa resumen --base ./trabajo
+```
+
+**Revisión sin GPU de los CSV ya disponibles en Google Drive** (único paso recomendado si solo se desea comprobar los resultados publicados):
+
+```bash
+python run_pipeline.py --etapa resumen --base /content/drive/MyDrive/examen_yolo
+```
+
+Esta última orden solo necesita los 8 archivos de métricas generales y por especie, dos particiones por cada modelo, dentro de `resultados_analisis`. No necesita fotografías ni checkpoints y no reevalúa TEST. Al ejecutarla genera los tres CSV: `comparacion_yolov8n_vs_yolov8s_test.csv`, `generalizacion_por_especie.csv` y `generalizacion_comparable_13_especies.csv`. El nombre del último CSV expresa la muestra original; en otras bases de datos el número de especies compartidas puede variar.
+
+**Comprobar el código sin GPU ni CCT-20:**
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+**Alcance:** el comando `todo` reconstruye preparación, entrenamiento, mAP TEST por especie y brecha geográfica. La selección manual de 120 objetos para oclusión, los análisis completos por tamaño y los ensayos de intervención sobre fondo se documentan y ejecutan en el notebook con sus archivos complementarios; no forman parte todavía de esa ruta automatizada integral. Los archivos originales y checkpoints no se distribuyen mediante GitHub por defecto.
+
+## 3. Ejecutar el monitoreo ecológico con un comando
 
 Se necesitan:
 
@@ -74,7 +124,7 @@ Sin `date_captured` **no se inventan fechas**; sin `seq_id`, cada fotografía se
 
 **Demostración ya ejecutada en CPU:** cámara TRANS TEST 46, 12 fotografías, 10 con detecciones, 12 cajas, 8 clases predichas, 16.67 % sin detección. Es una prueba funcional, no una medición adicional de exactitud frente a etiquetas reales.
 
-## 3. Reabrir el notebook experimental en Colab
+## 4. Reabrir el notebook experimental en Colab
 
 1. Abre `Pregunta_3_YOLO_Grupo_2.ipynb` desde GitHub en Google Colab.
 2. Coloca en `MyDrive/examen_yolo/raw/` los archivos originales autorizados: `eccv_18_annotations.tar.gz` y `eccv_18_all_images_sm.tar.gz`.
@@ -92,7 +142,7 @@ GENERAR_FIGURAS = True
 
 **Importante:** con estas opciones se regeneran figuras **solo cuando los CSV históricos y modelos que el notebook requiere ya existen**. Para reconstruir las particiones o reentrenar se deben habilitar las opciones correspondientes y disponer del hardware y los datos necesarios. Los entrenamientos históricos utilizaron Ultralytics `8.4.184`, 20 épocas máximas, imágenes de 640 px, batch 16 y optimizador AdamW.
 
-## 4. Limitaciones y uso responsable
+## 5. Limitaciones y uso responsable
 
 - La generalización a cámaras geográficamente nuevas presenta una caída considerable del mAP.
 - El diagnóstico de sensibilidad al fondo revela dependencia del contexto visual en algunos ejemplos, **sin probar por sí mismo memorización del escenario**.
@@ -100,11 +150,10 @@ GENERAR_FIGURAS = True
 - Los falsos negativos pueden ocultar registros de especies sensibles; los falsos positivos aumentan la carga de verificación por especialistas.
 - Los resultados deben ser supervisados por expertos en monitoreo ecológico; no constituyen censos automáticos de individuos.
 
-## 5. Datos, créditos y distribución
+## 6. Datos, créditos y distribución
 
 **Conjunto de datos:** Caltech Camera Traps / ECCV 2018. Respeta las condiciones y atribuciones originales al obtener y utilizar imágenes y anotaciones. Este repositorio no redistribuye el conjunto completo.
 
 **Licencia del código:** todavía no se ha especificado. La disponibilidad pública del repositorio no concede automáticamente permisos de reutilización. El equipo debe escoger una licencia cuando corresponda.
 
-**Pendiente para cumplir la reproducibilidad integral del examen:** publicar los scripts independientes de preparación, entrenamiento y evaluación, y documentar un único comando orquestador que reconstruya todos los resultados desde las fuentes y checkpoints definidos. Esto se incorporará sin modificar ni inventar las métricas históricas.
-
+**Pendiente para lograr una reproducción integral de todos los análisis:** incorporar las anotaciones humanas de oclusión (si su distribución es apropiada), las rutinas específicas de robustez y sensibilidad al fondo al comando orquestador, y comprobar una ejecución completa contra el CCT-20 original. El pipeline principal fue sometido a pruebas sintéticas; no se ha vuelto a ejecutar un entrenamiento completo con estos nuevos scripts.
