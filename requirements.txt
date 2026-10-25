@@ -1,0 +1,11 @@
+# Dependencias principales del notebook y del módulo ecológico.
+# Para reproducir los entrenamientos se usó Ultralytics 8.4.184.
+ultralytics==8.4.184
+pandas>=2.0,<3.0
+numpy>=1.26,<3.0
+matplotlib>=3.7,<4.0
+PyYAML>=6.0
+Pillow>=10.0
+opencv-python-headless>=4.8
+# PyTorch y torchvision son dependencias de Ultralytics.
+# Elegir las compilaciones CPU/CUDA apropiadas para el equipo.
