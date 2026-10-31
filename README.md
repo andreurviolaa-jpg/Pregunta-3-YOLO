@@ -2,7 +2,7 @@
 
 **UNI · Redes Neuronales y Aprendizaje Profundo · Pregunta 3 · Grupo 2 · 2026-II**
 
-Autores: Christian André Urviola García; Alex Reynaldo Pomazón Solórzano; Alexander André Chávez Cabana; Andhersson Manuel Salazar Fernández. **El enunciado solicita cinco integrantes; el quinto aún no ha sido identificado.**
+Autores: Christian André Urviola García; Alex Reynaldo Pomazón Solórzano; Alexander André Chávez Cabana; Andhersson Manuel Salazar Fernández.
 
 Se comparan YOLOv8n y YOLOv8s en el subconjunto ECCV 2018 de *Caltech Camera Traps*, considerando cámaras conocidas (CIS) y ubicaciones no observadas durante el entrenamiento (TRANS). Se analizan AP por especie, tamaño relativo, falsas alarmas, auditoría manual de oclusión, sensibilidad al fondo y un módulo de reporte ecológico.
 
