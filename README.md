@@ -1,159 +1,144 @@
 # Detección de fauna silvestre con YOLOv8 — CCT-20
 
-**Universidad Nacional de Ingeniería (UNI) · Examen de Deep Learning, Pregunta 3 · Grupo 2 (2026-II)**
+**UNI · Redes Neuronales y Aprendizaje Profundo · Pregunta 3 · Grupo 2 · 2026-II**
 
-Proyecto experimental de detección de fauna en imágenes de cámaras trampa de **Caltech Camera Traps (CCT-20)**. Se comparan dos detectores, **YOLOv8n** y **YOLOv8s**, con énfasis en la generalización de cámaras conocidas (**CIS TEST**) a cámaras no vistas durante entrenamiento (**TRANS TEST**), robustez y monitoreo ecológico.
+Autores: Christian André Urviola García; Alex Reynaldo Pomazón Solórzano; Alexander André Chávez Cabana; Andhersson Manuel Salazar Fernández. **El enunciado solicita cinco integrantes; el quinto aún no ha sido identificado.**
 
-## Archivos principales
+Se comparan YOLOv8n y YOLOv8s en el subconjunto ECCV 2018 de *Caltech Camera Traps*, considerando cámaras conocidas (CIS) y ubicaciones no observadas durante el entrenamiento (TRANS). Se analizan AP por especie, tamaño relativo, falsas alarmas, auditoría manual de oclusión, sensibilidad al fondo y un módulo de reporte ecológico.
 
-- [`Pregunta_3_YOLO_Grupo_2.ipynb`](Pregunta_3_YOLO_Grupo_2.ipynb): notebook experimental en **Google Colab**, con exploración, preparación opcional de CCT-20, entrenamiento opcional, lectura de métricas TEST, análisis de robustez, sensibilidad al fondo, reportes y figuras.
-- [`modulo_ecologico_yolov8s.py`](modulo_ecologico_yolov8s.py): programa independiente para inferencia sobre fotografías de una cámara y generación de reportes CSV.
-- [`requirements.txt`](requirements.txt): dependencias Python.
-- [`run_pipeline.py`](run_pipeline.py): comando central de preparación, entrenamiento opcional, evaluación y resumen.
-- [`src/`](src/): scripts independientes, configuraciones originales y conversión de anotaciones.
-- [`tests/`](tests/): pruebas automatizadas de preparación y agregación geográfica (datos sintéticos, sin GPU).
+## Reproducción desde un solo comando
 
-> **Estado de reproducibilidad:** `run_pipeline.py` permite preparar CCT-20, reproducir los dos entrenamientos y calcular el mAP sobre TEST mediante un único comando, una vez suministrados los TAR originales y una GPU compatible. También ofrece una etapa de resumen que NO realiza inferencias ni entrenamiento. El módulo ecológico dispone de CLI independiente. **No se incluyen** los datos originales, checkpoints, CSV históricos ni las 120 etiquetas humanas de oclusión; por tanto los análisis manuales de robustez y la reproducción bit a bit de cifras históricas requieren esos artefactos. Los entrenamientos estocásticos pueden presentar diferencias según hardware y versiones.
+**Requisitos:** Python 3.10 o superior, conexión a Internet, espacio libre suficiente para ~6.5 GB comprimidos más las imágenes extraídas (se recomienda al menos 18 GB) y una GPU **CUDA** para reproducir el entrenamiento completo. Es compatible con T4 o L4 con las versiones correctas de controladores/PyTorch; CPU solo para inferencia o diagnósticos sin entrenamiento. `reproducir.py` instala los paquetes de `requirements.txt` automáticamente.
 
-## Resultados principales observados
-
-| Modelo | Partición | mAP@0.5 | mAP@0.5:0.95 |
-|---|---|---:|---:|
-| YOLOv8n | CIS TEST | 0.7107 | 0.4565 |
-| YOLOv8s | CIS TEST | **0.7247** | **0.4712** |
-| YOLOv8n | TRANS TEST | 0.3759 | 0.2305 |
-| YOLOv8s | TRANS TEST | **0.4396** | **0.2742** |
-
-Para calcular una brecha geográfica comparable se toma la intersección de **13 especies** presentes en ambos TEST: la brecha macro de mAP@0.5 es aproximadamente **−35.03 puntos porcentuales para YOLOv8n** y **−29.98 para YOLOv8s**. Los mAP globales de las particiones y estas brechas por especies comunes corresponden a dos agregaciones diferentes.
-
-El análisis manual de oclusión revisó **120 instancias**, de las cuales **94 fueron confirmadas y evaluables** (84 con oclusión baja y 10 con oclusión media). No se confirmaron instancias de oclusión alta; los porcentajes por oclusión describen **esta muestra auditada**, no toda la distribución TEST. Las figuras de robustez por tamaño proceden de YOLOv8n, salvo que se indique lo contrario.
-
-## 1. Preparar el entorno
-
-Se recomienda usar Google Colab para el notebook y Python 3.10 o superior para el módulo de monitoreo.
+1. Obtener el código (GitHub → Code → Download ZIP, o clonar el repositorio). Situarse dentro de `Pregunta-3-YOLO/`.
+2. **Ejecutar este único comando en una terminal**:
 
 ```bash
-python -m pip install -r requirements.txt
+python reproducir.py --base ./trabajo --gpu
 ```
 
-Para inferencia con GPU se requiere una instalación compatible de PyTorch y los controladores correspondientes; **la CPU también funciona** para el módulo ecológico.
+**Hace, en orden**:
 
-## 2. Reproducción del pipeline principal con un solo comando
+1. Instala dependencias de `requirements.txt`, incluido `gdown`.
+2. Descarga automáticamente los dos TAR **y solo esos dos** desde la carpeta pública [examen_yolo/raw](https://drive.google.com/drive/folders/1hpeqFqK0WNzu6RA5y53Y5suHtmhrIMFs).
+3. Verifica tamaño y cabecera GZIP; comprueba también el MD5 oficial del TAR de anotaciones y la presencia de cinco JSON de particiones.
+4. Prepara y filtra CCT-20, guarda 48 095 imágenes y sus etiquetas YOLO; guarda también metadatos originales de cámara, fecha y secuencia.
+5. Entrena YOLOv8n y YOLOv8s con 20 épocas máximas y la configuración documentada.
+6. Evalúa CIS TEST y TRANS TEST, calcula AP por especie y brechas geográficas comparables.
+7. Ejecuta diagnóstico de **YOLOv8s** para tamaño de caja y falsas alarmas sobre imágenes vacías.
+8. Descarga el CSV de auditoría humana de 120 casos desde la carpeta pública, compara ambos modelos por oclusión y evalúa sensibilidad al fondo con el mismo matching 1:1.
+9. Ejecuta monitoreo ecológico con **secuencias multiframe reales** de una cámara TRANS, sus fechas originales y reportes CSV.
+10. Exporta figuras y un manifiesto que describe qué se ejecutó.
 
-Estructura de datos **aportada por quien ejecute el experimento**:
+**Advertencia**: este comando entrena dos modelos y realiza inferencias adicionales sobre decenas de miles de imágenes. Puede consumir bastante tiempo y GPU; no se ha validado todavía una ejecución completa de extremo a extremo con este paquete actualizado. Sus resultados pueden variar según hardware y librerías.
+
+### Alternativa: verificar con pesos finales públicos, SIN reentrenar
+
+```bash
+python reproducir.py --base ./trabajo --pesos-publicos --cpu
+```
+
+Descarga el dataset y los checkpoints **publicados previamente** (YOLOv8n 6.50 MB y YOLOv8s 22.51 MB), prepara datos, ejecuta TEST y análisis adicionales. **Esta alternativa no reproduce los 20+20 ciclos de entrenamiento**, solo la evaluación. En CPU procesar >31 mil fotografías por modelo es lento. Para omitir los análisis adicionales, agregar `--sin-extra`.
+
+### Comprobar componentes o reanudar por etapas
+
+```bash
+python reproducir.py --etapa pruebas --sin-instalar
+python reproducir.py --etapa descargar --base ./trabajo
+python reproducir.py --etapa preparar --base ./trabajo
+python reproducir.py --etapa entrenar --base ./trabajo --gpu
+python reproducir.py --etapa evaluar --base ./trabajo --cpu
+python reproducir.py --etapa resumen --base ./trabajo
+python reproducir.py --etapa diagnosticos --base ./trabajo --cpu
+python reproducir.py --etapa ecologia --base ./trabajo --cpu
+python reproducir.py --etapa figuras --base ./trabajo --cpu
+```
+
+Las descargas incompletas se pueden **reanudar**, y las imágenes ya extraídas se reutilizan. Cuando Ultralytics genera `last.pt` pero no se ha registrado una finalización, el entrenamiento intenta reanudarse; la reanudación no es universal si cambia el entorno o hay un run corrupto. No se sobrescriben automáticamente archivos de ejecución dudosos.
+
+**En Google Colab**, primero clona o abre el proyecto y habilita GPU. Una celda de código utiliza un signo `!`:
+
+```python
+!python reproducir.py --base /content/trabajo --gpu
+```
+
+Si quieres resultados persistentes entre reinicios de Colab, usa una `--base` alojada en Drive montado, aunque extraer miles de imágenes allí puede ser bastante más lento. En una terminal Bash/PowerShell normal **no** se escribe `!`.
+
+### Descarga pública y permisos
+
+Carpeta original: [examen_yolo](https://drive.google.com/drive/folders/1Mq286eDir-lCFQ4MQ9gbvCUERlpVJ6tq?usp=drive_link). El descargador usa **los ID exactos** de los dos archivos dentro de `raw/`; no descarga recursivamente toda la carpeta de resultados y notebooks del autor.
+
+| Archivo | Tamaño exacto | Uso |
+|---|---:|---|
+| `eccv_18_annotations.tar.gz` | 2 997 071 bytes | Anotaciones oficiales ECCV 2018 |
+| `eccv_18_all_images_sm.tar.gz` | 6 492 615 601 bytes | Fotografías originales |
+
+Para que el docente pueda descargar **sin iniciar sesión**, el propietario debe comprobar en una ventana de incógnito que **ambos archivos** están accesibles con **«Cualquier persona con el enlace → Lector»**. El hecho de ver archivos como propietario no acredita que sean anónimamente descargables. Google Drive puede imponer cuotas, sobre todo al TAR de 6.49 GB. Si falla la descarga, usar la fuente original [LILA BC / Caltech Camera Traps](https://lila.science/datasets/caltech-camera-traps), respetando su licencia y condiciones de redistribución. No se necesitan contraseñas ni tokens.
+
+## Protocolo del benchmark
+
+El CCT-20 general contiene más imágenes; este trabajo utiliza los **57 864 registros** de la partición ECCV 2018 publicada por los autores. Se seleccionan las fotografías elegibles con cajas coherentes y las negativas explícitas; nunca se convierten animales sin bounding box en falsos negativos de entrenamiento.
+
+| Partición | Original | Elegibles | Excluidas |
+|---|---:|---:|---:|
+| TRAIN | 13 553 | 12 099 | 1 454 |
+| CIS VAL | 3 484 | 2 619 | 865 |
+| TRANS VAL | 1 725 | 1 594 | 131 |
+| CIS TEST | 15 827 | 13 085 | 2 742 |
+| TRANS TEST | 23 275 | 18 698 | 4 577 |
+| **Total** | **57 864** | **48 095** | **9 769** |
+
+14 clases de fauna, resolución 640, batch 16, AdamW, lr inicial 0.0006, lrf 0.10, cosine schedule, 20 épocas máximas, semilla 0, hsv/mosaic moderados. TRAIN posee **668 fotos solamente con automóvil** como negativos etiquetados sin cajas; no hay vacíos explícitos en TRAIN. La evaluación sí incluye fotografías vacías reales del benchmark. Las métricas informadas abarcan **las imágenes elegibles**, no la colección general de 243 100 imágenes.
+
+**Comprobación geográfica:** CIS = cámaras vistas durante entrenamiento; TRANS = cámaras nuevas. El script conserva IDs oficiales en `dataset/metadatos_imagenes.csv` y produce `dataset/auditoria_camaras.csv` y `dataset/auditoria_solapamientos.csv`. En los datos elegibles se observaron 70 secuencias compartidas TRAIN/CIS VAL, pero ninguna TRAIN/CIS TEST. Para las brechas de AP se usa el conjunto de especies **compartidas** por ambas particiones.
+
+## Resultados de referencia (obtenidos en la ejecución original con L4)
+
+| Modelo | CIS TEST mAP50 | TRANS TEST mAP50 | CIS TEST mAP50-95 | TRANS TEST mAP50-95 |
+|---|---:|---:|---:|---:|
+| YOLOv8n | 0.7107 | 0.3759 | 0.4565 | 0.2305 |
+| YOLOv8s | 0.7247 | 0.4396 | 0.4712 | 0.2742 |
+
+Brechas de 13 especies comparables: YOLOv8n −35.03 pp, YOLOv8s −29.98 pp. Las nuevas métricas por tamaño son **recall de detecciones a conf≥0.25, IoU≥0.50**, no mAP. Para falsas alarmas se informa porcentaje de fotos sin cajas con al menos una predicción y cantidad de predicciones por 100 fotos vacías. El protocolo oficial de Ultralytics no utiliza necesariamente el mismo umbral que esos análisis personalizados.
+
+Auditoría de oclusión: 120 casos marcados manualmente; 94 evaluables (84 bajos, 10 medios, **0 altos**). La ausencia de oclusión alta **sigue siendo una limitación**; el código no inventa esas etiquetas. Los análisis de fondo intervienen artificialmente los píxeles fuera de una caja GT, por lo que muestran sensibilidad al contexto visual, no causalidad definitiva de memorización del fondo.
+
+## Carpeta resultante
 
 ```text
 trabajo/
-  raw/
-    eccv_18_annotations.tar.gz
-    eccv_18_all_images_sm.tar.gz
-  dataset/                 # generado automáticamente
-  runs/                    # generado al entrenar
-  resultados_analisis/     # generado al evaluar
+├── raw/                 # los 2 TAR públicos
+├── dataset/
+│   ├── images/{train,cis_val,trans_val,cis_test,trans_test}/
+│   ├── labels/{train,cis_val,trans_val,cis_test,trans_test}/
+│   ├── data_cis.yaml, data_trans_test.yaml, ...
+│   ├── auditoria_preparacion.csv
+│   └── metadatos_imagenes.csv
+├── runs/                # pesos y registros de entrenamiento
+├── resultados_analisis/
+│   ├── comparacion_yolov8n_vs_yolov8s_test.csv
+│   ├── generalizacion_comparable_13_especies.csv
+│   ├── diagnosticos_reproducibles/  # recall tamaño, vacíos, oclusión, fondo
+│   ├── oclusion_test/muestra_oclusion_test.csv
+│   ├── demo_ecologica_reproducible/reportes/
+│   └── manifiesto_reproduccion.json
+└── articulo_final/figuras_reproducidas/
 ```
 
-Los nombres de `raw/*.tar.gz` corresponden exactamente a los archivos utilizados en el Colab. La preparación verifica los conteos finales: **12.099 TRAIN; 2.619 CIS VAL; 1.594 TRANS VAL; 13.085 CIS TEST; 18.698 TRANS TEST**. Las fotos de fauna sin bounding boxes completas no se convierten en negativos; los **668 negativos solo-car** de entrenamiento sí se incluyen con etiquetas vacías.
-
-**Un comando para reconstruir los experimentos centrales** (requiere acceso legal al conjunto, almacenamiento suficiente, CUDA y tiempo de GPU):
+## Módulo ecológico independiente
 
 ```bash
-python run_pipeline.py --etapa todo --base ./trabajo --permitir-entrenamiento-gpu
+python modulo_ecologico_yolov8s.py --images ./imagenes --weights ./best.pt \
+  --output ./salida_ecologica --metadata ./metadata.csv --cpu
 ```
 
-El indicador `--permitir-entrenamiento-gpu` es obligatorio: nunca se entrena por defecto. Los checkpoints existentes se reutilizan. Los pasos individuales también se pueden ejecutar:
+Se generan reportes por cámara, especie, secuencia y periodo. Sin metadatos originales de fecha/secuencia **no se inventan** periodos ni eventos. Los eventos estiman presencia por secuencia; no identifican individuos. «Sin detección» NO significa «sin fauna real». La reproducción integral selecciona automáticamente una cámara no vista y secuencias multiframe oficiales, para mostrar la agregación ecológica con una pequeña muestra (≤48 fotos).
 
-```bash
-python run_pipeline.py --etapa preparar --base ./trabajo
-python run_pipeline.py --etapa entrenar --base ./trabajo --permitir-entrenamiento-gpu
-python run_pipeline.py --etapa evaluar --base ./trabajo
-python run_pipeline.py --etapa resumen --base ./trabajo
-```
+## Límites y transparencia
 
-**Revisión sin GPU de los CSV ya disponibles en Google Drive** (único paso recomendado si solo se desea comprobar los resultados publicados):
-
-```bash
-python run_pipeline.py --etapa resumen --base /content/drive/MyDrive/examen_yolo
-```
-
-Esta última orden solo necesita los 8 archivos de métricas generales y por especie, dos particiones por cada modelo, dentro de `resultados_analisis`. No necesita fotografías ni checkpoints y no reevalúa TEST. Al ejecutarla genera los tres CSV: `comparacion_yolov8n_vs_yolov8s_test.csv`, `generalizacion_por_especie.csv` y `generalizacion_comparable_13_especies.csv`. El nombre del último CSV expresa la muestra original; en otras bases de datos el número de especies compartidas puede variar.
-
-**Comprobar el código sin GPU ni CCT-20:**
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-**Alcance:** el comando `todo` reconstruye preparación, entrenamiento, mAP TEST por especie y brecha geográfica. La selección manual de 120 objetos para oclusión, los análisis completos por tamaño y los ensayos de intervención sobre fondo se documentan y ejecutan en el notebook con sus archivos complementarios; no forman parte todavía de esa ruta automatizada integral. Los archivos originales y checkpoints no se distribuyen mediante GitHub por defecto.
-
-## 3. Ejecutar el monitoreo ecológico con un comando
-
-Se necesitan:
-
-- Una carpeta local `imagenes/` con fotografías JPG, PNG u otros formatos admitidos.
-- El checkpoint entrenado **YOLOv8s** (`best.pt`), suministrado por el equipo.
-- Opcionalmente, `metadata.csv` para agrupar secuencias y registrar periodos.
-
-```bash
-python modulo_ecologico_yolov8s.py --images ./imagenes --weights ./best.pt --output ./salida_ecologica --metadata ./metadata.csv --cpu
-```
-
-Si **no tienes `metadata.csv`**, omite completamente `--metadata ./metadata.csv`:
-
-```bash
-python modulo_ecologico_yolov8s.py --images ./imagenes --weights ./best.pt --output ./salida_ecologica --cpu
-```
-
-El programa procesa las imágenes, guarda progreso para reanudación y produce:
-
-- `fotografias.csv`: detección por fotografía.
-- `detecciones.csv`: cajas, especies y confianzas predichas.
-- `resumen_camaras.csv`: porcentaje de fotografías con/sin detección.
-- `resumen_especies.csv`: detecciones y eventos por secuencia.
-- `eventos_secuencia.csv`, `reporte_diario.csv`, `reporte_mensual.csv`, `reporte_horario.csv`.
-- `configuracion.json`: configuración de la ejecución.
-
-**Formato opcional de metadatos** (`metadata.csv`):
-
-```csv
-file_name,location,seq_id,date_captured
-foto_001.jpg,camara_46,secuencia_001,2018-05-01 06:30:00
-foto_002.jpg,camara_46,secuencia_001,2018-05-01 06:30:05
-```
-
-Sin `date_captured` **no se inventan fechas**; sin `seq_id`, cada fotografía se considera provisionalmente una secuencia distinta. Una *detección* tampoco equivale necesariamente a un individuo diferente. Las fotografías sin detección **no deben interpretarse automáticamente como fotografías sin fauna real**.
-
-**Demostración ya ejecutada en CPU:** cámara TRANS TEST 46, 12 fotografías, 10 con detecciones, 12 cajas, 8 clases predichas, 16.67 % sin detección. Es una prueba funcional, no una medición adicional de exactitud frente a etiquetas reales.
-
-## 4. Reabrir el notebook experimental en Colab
-
-1. Abre `Pregunta_3_YOLO_Grupo_2.ipynb` desde GitHub en Google Colab.
-2. Coloca en `MyDrive/examen_yolo/raw/` los archivos originales autorizados: `eccv_18_annotations.tar.gz` y `eccv_18_all_images_sm.tar.gz`.
-3. El notebook utiliza `MyDrive/examen_yolo/runs/` para checkpoints y `MyDrive/examen_yolo/resultados_analisis/` para CSV históricos, que deben aportarse por separado si solo se quieren reproducir las figuras.
-4. Por defecto, mantén:
-
-```python
-PREPARAR_DATASET = False
-ENTRENAR_MODELOS = False
-RECALCULAR_TEST = False
-RECALCULAR_OCLUSION = False
-RECALCULAR_FONDO = False
-GENERAR_FIGURAS = True
-```
-
-**Importante:** con estas opciones se regeneran figuras **solo cuando los CSV históricos y modelos que el notebook requiere ya existen**. Para reconstruir las particiones o reentrenar se deben habilitar las opciones correspondientes y disponer del hardware y los datos necesarios. Los entrenamientos históricos utilizaron Ultralytics `8.4.184`, 20 épocas máximas, imágenes de 640 px, batch 16 y optimizador AdamW.
-
-## 5. Limitaciones y uso responsable
-
-- La generalización a cámaras geográficamente nuevas presenta una caída considerable del mAP.
-- El diagnóstico de sensibilidad al fondo revela dependencia del contexto visual en algunos ejemplos, **sin probar por sí mismo memorización del escenario**.
-- No hay suficientes ejemplos confirmados de oclusión alta para estimar robustez en ese subgrupo.
-- Los falsos negativos pueden ocultar registros de especies sensibles; los falsos positivos aumentan la carga de verificación por especialistas.
-- Los resultados deben ser supervisados por expertos en monitoreo ecológico; no constituyen censos automáticos de individuos.
-
-## 6. Datos, créditos y distribución
-
-**Conjunto de datos:** Caltech Camera Traps / ECCV 2018. Respeta las condiciones y atribuciones originales al obtener y utilizar imágenes y anotaciones. Este repositorio no redistribuye el conjunto completo.
-
-**Licencia del código:** todavía no se ha especificado. La disponibilidad pública del repositorio no concede automáticamente permisos de reutilización. El equipo debe escoger una licencia cuando corresponda.
-
-**Pendiente para lograr una reproducción integral de todos los análisis:** incorporar las anotaciones humanas de oclusión (si su distribución es apropiada), las rutinas específicas de robustez y sensibilidad al fondo al comando orquestador, y comprobar una ejecución completa contra el CCT-20 original. El pipeline principal fue sometido a pruebas sintéticas; no se ha vuelto a ejecutar un entrenamiento completo con estos nuevos scripts.
+- El detector está implementado por Ultralytics (YOLOv8); contribuciones originales del equipo: preparación, filtrado, orquestación, comparaciones, auditoría, intervenciones del fondo y agregación ecológica. **No se afirma haber implementado el backbone YOLO desde cero**.
+- El modelo YOLOv8s se eligió tras explorar TEST; la comparación es exploratoria, no una validación ciega estricta.
+- El análisis de alta oclusión sigue sin muestra suficiente. No se reemplaza por mala visibilidad ni truncamiento.
+- Las pruebas automáticas son **sintéticas** y no equivalen a una reproducción completa: se necesita ejecutar y conservar el manifiesto en un entorno limpio. El acceso anónimo y la descarga de 6.49 GB no se han podido verificar desde aquí.
+- Los falsos negativos de especies amenazadas y los falsos positivos requieren revisión humana; el modelo no se ha validado para Amazonía ni Andes peruanos.
+- El conjunto original y los pesos se alojan fuera de GitHub. Verificar siempre los derechos de redistribución y atribución. La visibilidad pública del repositorio **no concede automáticamente una licencia**.
