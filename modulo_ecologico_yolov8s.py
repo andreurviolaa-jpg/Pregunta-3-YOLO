@@ -99,6 +99,10 @@ def crear_reportes(fotos: pd.DataFrame, detecciones: pd.DataFrame, carpeta: Path
         Cajas_detectadas=("n_detecciones", "sum"),
         Secuencias=("seq_id", "nunique"),
     )
+    # Número de especies predichas; no equivale a riqueza real validada.
+    n_especies = detecciones.groupby("location")["especie"].nunique().reset_index(name="Especies_predichas")
+    resumen_camaras = resumen_camaras.merge(n_especies, on="location", how="left")
+    resumen_camaras["Especies_predichas"] = resumen_camaras["Especies_predichas"].fillna(0).astype(int)
     resumen_camaras["Fotos_sin_deteccion"] = (
         resumen_camaras["Fotografias"] - resumen_camaras["Fotos_con_deteccion"]
     )
@@ -263,7 +267,9 @@ def main() -> None:
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--gpu", action="store_true", help="Opcional; por defecto usa CPU")
+    dispositivos = parser.add_mutually_exclusive_group()
+    dispositivos.add_argument("--gpu", action="store_true", help="Opcional: inferencia en GPU")
+    dispositivos.add_argument("--cpu", action="store_true", help="Explícitamente CPU; también es el valor por defecto")
     args = parser.parse_args()
     ejecutar_monitoreo(
         carpeta_imagenes=args.images, pesos=args.weights, salida=args.output,
