@@ -9,3 +9,7 @@ Pillow>=10.0
 opencv-python-headless>=4.8
 # PyTorch y torchvision son dependencias de Ultralytics.
 # Elegir las compilaciones CPU/CUDA apropiadas para el equipo.
+
+# Descarga reanudable de los dos TAR desde el Drive público
+gdown>=6.3,<7
+
