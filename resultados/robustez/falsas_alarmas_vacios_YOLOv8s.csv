@@ -1,0 +1,3 @@
+Modelo,Particion,Fotos_vacias,Fotos_vacias_con_alarma,Cajas_falsas,Porcentaje_vacias_con_alarma,Cajas_falsas_por_100_fotos
+YOLOv8s,cis_test,1180,161,242,13.644067796610168,20.508474576271183
+YOLOv8s,trans_test,1778,390,464,21.934758155230597,26.09673790776153

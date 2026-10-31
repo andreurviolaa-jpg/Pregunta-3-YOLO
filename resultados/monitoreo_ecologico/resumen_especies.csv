@@ -1,0 +1,6 @@
+location,especie,Fotografias_con_especie,Cajas_detectadas,Confianza_media,Eventos_secuencia
+46,bobcat,9,9,0.7091485758622488,4
+46,opossum,23,24,0.6590543476243814,10
+46,rabbit,4,4,0.6494118273258209,2
+46,raccoon,1,1,0.2851565182209015,1
+46,squirrel,2,2,0.3132905513048172,1

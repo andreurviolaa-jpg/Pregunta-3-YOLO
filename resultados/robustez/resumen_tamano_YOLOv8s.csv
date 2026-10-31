@@ -1,0 +1,7 @@
+Particion,Tamano,Casos,Detectados,Recall,Recall_pct
+cis_test,Grande (>=10%),830,642,0.7734939759036145,77.35
+cis_test,Mediano (1-<10%),10494,9298,0.8860301124452068,88.6
+cis_test,Pequeno (<1%),1149,763,0.6640557006092254,66.41
+trans_test,Grande (>=10%),1549,425,0.27437056165267915,27.44
+trans_test,Mediano (1-<10%),14200,11050,0.778169014084507,77.82
+trans_test,Pequeno (<1%),1924,943,0.4901247401247401,49.01

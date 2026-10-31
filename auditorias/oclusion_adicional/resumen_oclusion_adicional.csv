@@ -1,0 +1,7 @@
+﻿Particion,Oclusion_final,Casos,Detectados,Recall_pct
+cis_test,Alta,11,10,90.91
+cis_test,Baja,86,78,90.7
+cis_test,Media,15,13,86.67
+trans_test,Alta,2,2,100.0
+trans_test,Baja,85,67,78.82
+trans_test,Media,19,12,63.16

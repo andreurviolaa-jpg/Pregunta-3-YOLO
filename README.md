@@ -142,3 +142,21 @@ Se generan reportes por cámara, especie, secuencia y periodo. Sin metadatos ori
 - Las pruebas automáticas son **sintéticas** y no equivalen a una reproducción completa: se necesita ejecutar y conservar el manifiesto en un entorno limpio. El acceso anónimo y la descarga de 6.49 GB no se han podido verificar desde aquí.
 - Los falsos negativos de especies amenazadas y los falsos positivos requieren revisión humana; el modelo no se ha validado para Amazonía ni Andes peruanos.
 - El conjunto original y los pesos se alojan fuera de GitHub. Verificar siempre los derechos de redistribución y atribución. La visibilidad pública del repositorio **no concede automáticamente una licencia**.
+
+**Auditoría complementaria de oclusión (240 objetos).** Se realizó una segunda auditoría manual independiente, mediante muestreo aleatorio estratificado por partición (120 objetos CIS TEST y 120 TRANS TEST). De los 240 objetos revisados, 218 fueron evaluables. Los resultados corresponden a YOLOv8s con confianza ≥ 0.25, IoU ≥ 0.50 y emparejamiento uno a uno entre predicciones y anotaciones reales.
+
+| Partición | Oclusión baja | Oclusión media | Oclusión alta |
+|---|---|---|---|
+| CIS TEST | 78/86 (90.70%) | 13/15 (86.67%) | 10/11 (90.91%) |
+| TRANS TEST | 67/85 (78.82%) | 12/19 (63.16%) | 2/2 (100.00%) |
+| **Total** | **145/171 (84.80%)** | **25/34 (73.53%)** | **12/13 (92.31%)** |
+
+Los porcentajes representan el recall de detección por objeto, no mAP. La muestra de oclusión alta es pequeña, especialmente en TRANS TEST (2 casos), por lo que no permite concluir que el detector sea más robusto ante oclusión severa. Esta auditoría se reporta separadamente de la primera muestra de 120 objetos.
+
+Los datos de la revisión humana y sus resultados están disponibles en `auditorias/oclusion_adicional/`.
+
+## Informe final
+
+El artículo académico de la Pregunta 3 se encuentra disponible en [Informe final — formato NeurIPS 2026](paper/Informe_Final_P3_YOLO.pdf).
+
+El repositorio incluye el código de entrenamiento y evaluación de YOLOv8n/YOLOv8s, las métricas por especie, los análisis de generalización CIS/TRANS, las auditorías de oclusión, las figuras y los reportes de monitoreo ecológico.
