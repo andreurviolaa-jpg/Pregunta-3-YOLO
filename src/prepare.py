@@ -5,6 +5,7 @@ como imágenes negativas. Las imágenes solo-car en train (668 en el estudio)
 se incluyen con archivos de etiquetas vacíos.
 """
 import json
+import os
 import shutil
 import tarfile
 from collections import Counter, defaultdict
@@ -141,16 +142,81 @@ def extraer_imagenes(archivo_tar: Path, seleccion: dict, dataset: Path):
                 continue
             destino = dataset / 'images' / pendientes.pop(nombre) / nombre
             destino.parent.mkdir(parents=True, exist_ok=True)
-            with tar.extractfile(miembro) as origen, destino.open('wb') as salida:
+            tmp = destino.with_suffix(destino.suffix + '.part')
+            with tar.extractfile(miembro) as origen, tmp.open('wb') as salida:
                 shutil.copyfileobj(origen, salida)
+            if tmp.stat().st_size != miembro.size:
+                raise IOError(f'Extracción incompleta: {nombre}')
+            os.replace(tmp, destino)
             if not pendientes:
                 break
     if pendientes:
         raise FileNotFoundError(f'No se encontraron {len(pendientes)} fotos en el TAR de imágenes')
 
 
+def guardar_metadata(datos: dict, seleccion: dict, dataset: Path):
+    """Metadatos oficiales por fotografía elegible, sin inventar fechas o secuencias."""
+    filas = []
+    for split, obj in datos.items():
+        for img in obj['images']:
+            nombre = Path(img['file_name']).name
+            if nombre not in seleccion or seleccion[nombre][0] != split:
+                continue
+            filas.append(dict(
+                file_name=nombre, Particion=split,
+                location=str(img.get('location', '')),
+                seq_id=str(img.get('seq_id', '')),
+                date_captured=img.get('date_captured') or img.get('datetime'),
+                image_id=str(img.get('id', '')),
+                ancho=int(img['width']), alto=int(img['height']),
+                n_cajas=len(seleccion[nombre][1]),
+            ))
+    df = pd.DataFrame(filas)
+    df.to_csv(dataset / 'metadatos_imagenes.csv', index=False)
+    # Auditar geografía y secuencias. Las secuencias de TRAIN y CIS VAL
+    # pueden coincidir (fotogramas distintos); no afirmar ausencia general.
+    desglose=[]
+    for split in PARTICIONES:
+        parte=df[df['Particion']==split]
+        desglose.append(dict(Particion=split, Imagenes=len(parte),
+                             Camaras=parte.loc[parte['location'].ne(''), 'location'].nunique(),
+                             Secuencias=parte.loc[parte['seq_id'].ne(''), 'seq_id'].nunique(),
+                             Negativas=int((parte['n_cajas']==0).sum())))
+    pd.DataFrame(desglose).to_csv(dataset/'auditoria_camaras.csv',index=False)
+    pares=[]
+    for i,a in enumerate(PARTICIONES):
+        for b in PARTICIONES[i+1:]:
+            suba=df[df.Particion==a]; subb=df[df.Particion==b]
+            loc_a=set(suba.loc[suba.location.ne(''),'location']); loc_b=set(subb.loc[subb.location.ne(''),'location'])
+            seq_a=set(suba.loc[suba.seq_id.ne(''),'seq_id']); seq_b=set(subb.loc[subb.seq_id.ne(''),'seq_id'])
+            pares.append(dict(Particion_A=a,Particion_B=b,
+                              Camaras_compartidas=len(loc_a&loc_b),
+                              Secuencias_compartidas=len(seq_a&seq_b),
+                              Fotografias_compartidas=len(set(suba.file_name)&set(subb.file_name))))
+    pd.DataFrame(pares).to_csv(dataset/'auditoria_solapamientos.csv',index=False)
+    # La separación geográfica del benchmark es un requisito; parar si se pierde.
+    vistas=set(df[df.Particion.isin(['train','cis_val','cis_test'])].location)
+    nuevas=set(df[df.Particion.isin(['trans_val','trans_test'])].location)
+    vistas.discard(''); nuevas.discard('')
+    if vistas & nuevas:
+        raise ValueError(f'Cámaras repetidas CIS-TRANS: {sorted(vistas&nuevas)}')
+    return df
+
+
 def preparar(annotations_tar: Path, images_tar: Path, dataset: Path, strict=True):
     dataset = Path(dataset).resolve()
+    marker = dataset / 'preparacion_terminada.json'
+    if marker.is_file() and strict:
+        anterior = json.loads(marker.read_text(encoding='utf-8'))
+        archivos = (Path(annotations_tar), Path(images_tar))
+        actual = {'dataset': str(dataset), 'raw_bytes': [p.stat().st_size for p in archivos if p.is_file()]}
+        if actual == anterior and all(
+            len(list((dataset / 'images' / split).glob('*.jpg'))) == CANTIDADES_ESPERADAS[split]
+            and len(list((dataset / 'labels' / split).glob('*.txt'))) == CANTIDADES_ESPERADAS[split]
+            for split in PARTICIONES
+        ) and (dataset / 'metadatos_imagenes.csv').is_file():
+            print('Dataset ya preparado y verificado; se omite la extracción.', flush=True)
+            return pd.read_csv(dataset / 'auditoria_preparacion.csv')
     datos = cargar_anotaciones(annotations_tar)
     seleccion, auditoria = seleccionar_dataset(datos)
     for split in PARTICIONES:
@@ -167,5 +233,7 @@ def preparar(annotations_tar: Path, images_tar: Path, dataset: Path, strict=True
     guardar_yamls(dataset)
     extraer_imagenes(images_tar, seleccion, dataset)
     auditoria.to_csv(dataset / 'auditoria_preparacion.csv', index=False)
+    guardar_metadata(datos, seleccion, dataset)
+    marker.write_text(json.dumps({'dataset': str(dataset), 'raw_bytes': [Path(p).stat().st_size for p in (annotations_tar, images_tar)]}, indent=2), encoding='utf-8')
     print(f'Dataset listo en {dataset}')
     return auditoria
